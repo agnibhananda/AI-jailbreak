@@ -76,11 +76,12 @@ export default function SuccessPage() {
             Returning to main interface in {countdown} seconds...
           </p>
           
-          <Link href="/" passHref>
-            <NeonButton className="px-8 py-3">
-              RETURN NOW
-            </NeonButton>
-          </Link>
+          <NeonButton 
+            className="px-8 py-3"
+            onClick={() => window.location.href = "/"}
+          >
+            RETURN NOW
+          </NeonButton>
         </motion.div>
       </motion.div>
       
