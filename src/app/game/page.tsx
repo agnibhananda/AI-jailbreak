@@ -80,7 +80,7 @@ export default function GamePage() {
   }, [messages]);
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    const handleMouseMove = (e: MouseEvent) => {
       const cursor = document.createElement('div');
       cursor.className = 'cursor-trail';
       cursor.style.left = `${e.pageX}px`;
