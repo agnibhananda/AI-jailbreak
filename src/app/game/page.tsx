@@ -43,7 +43,7 @@ export default function GamePage() {
       // If freed, redirect
       if (geminiResponse.freed) {
         setTimeout(() => {
-          window.location.href = "/main"; // 🔁 Change to your target route
+          window.location.href = ""; // 🔁 Change to your target route
         }, 1500);
       }
   
