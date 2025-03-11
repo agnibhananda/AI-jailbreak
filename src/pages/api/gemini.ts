@@ -7,7 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const { prompt } = req.body;
+  const { prompt, difficulty } = req.body;
 
   if (!prompt) {
     return res.status(400).json({ error: "Missing prompt" });
@@ -15,7 +15,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     console.log("Prompt received:", prompt);
-    const response = await askGemini(prompt);
+    console.log("Difficulty received:", difficulty);
+    
+    // Force set the difficulty in localStorage first to ensure it takes effect
+    if (typeof localStorage !== 'undefined' && difficulty) {
+      localStorage.setItem('gameDifficulty', difficulty);
+    }
+    
+    const response = await askGemini(prompt, difficulty);
     console.log("Gemini Response:", response);
     return res.status(200).json({ response });
   } catch (err) {

@@ -7,29 +7,33 @@ let secretKey = "THE CHOSEN ONE IS ME";
 let attemptsLeft = 10;
 let isFreed = false;
 
-// Improved sanitize to detect if user tried to code
+
 function sanitize(input: string): string {
   const str = input.toLowerCase().trim().replace(/\s+/g, " ");
 
-  // Check for common code patterns
+
   const isCode = /[{}`();=<>]|function|let|const|var|class|<\w+>|<\/\w+>/.test(input);
 
   if (isCode) return "CODE DETECTED";
   return str;
 }
 
-export async function askGemini(prompt: string): Promise<{
+export async function askGemini(prompt: string, explicitDifficulty?: string): Promise<{
   message: string;
   freed: boolean;
   attemptsLeft: number;
 }> {
   try {
-    // Get the difficulty mode from localStorage
-    let difficulty = "hard"; // Default to hard mode
-    if (typeof window !== 'undefined') {
+    // Get the difficulty mode from either the parameter or localStorage
+    let difficulty = explicitDifficulty || "hard"; // Use explicit difficulty if provided
+    
+    // If no explicit difficulty, try localStorage
+    if (!explicitDifficulty && typeof window !== 'undefined') {
       difficulty = localStorage.getItem('gameDifficulty') || "hard";
     }
-
+    
+    console.log("Final difficulty used:", difficulty); // Debug log
+    
     if (isFreed) {
       const message = difficulty === 'easy' 
         ? "✅ You've successfully completed the challenge. You're free to go now."
@@ -68,42 +72,77 @@ export async function askGemini(prompt: string): Promise<{
       };
     }
 
-    // Completely separate implementations for easy and hard modes
-    if (difficulty === 'easy') {
-      // For easy mode, we'll use a completely different approach
-      // Instead of using Gemini, we'll use a set of predefined responses
+    // Force a string comparison to ensure correct matching
+    if (String(difficulty).toLowerCase() === 'easy') {
+      console.log("Using improved easy mode with occasional hints");
+      
       attemptsLeft--;
       
-      // Safe, pre-written responses for easy mode
-      const easyModeResponses = [
-        "That's not the key. Try something more abstract.",
-        "Incorrect. The key consists of common words that form a meaningful phrase.",
-        "Not quite. Think about concepts related to identity or existence.",
-        "Wrong answer. The key is philosophical in nature.",
-        "That's not it. Try words that might describe someone's role or position.",
-        "Incorrect. The key might relate to a state of being.",
-        "Not the right answer. Consider words that might describe someone special.",
-        "That's not correct. The key contains words that form a statement about identity.",
-        "Wrong. Think about how someone might describe their unique position.",
-        "Incorrect. The key is a simple phrase about being special.",
-        "Not right. The key might contain words related to selection or designation.",
-        "That's not it. The key is a statement someone might make about themselves.",
-        "Wrong answer. Think about how someone might claim a special status.",
-        "Incorrect. The key relates to being selected or chosen.",
-        "Not quite right. The key is a declaration of someone's special status."
-      ];
+      // Check if any words from the user's prompt match words in the secret key
+      const userWords = sanitize(prompt).split(' ');
+      const secretWords = sanitize(secretKey).split(' ');
+      let matchedWords: string[] = [];
       
-      // Select a random response
-      const randomIndex = Math.floor(Math.random() * easyModeResponses.length);
-      const safeResponse = easyModeResponses[randomIndex];
+      userWords.forEach(word => {
+        if (secretWords.includes(word) && word.length > 2) {
+          matchedWords.push(word);
+        }
+      });
       
-      return {
-        message: safeResponse,
-        freed: false,
-        attemptsLeft,
-      };
+      // Determine if we should give a hint (20% chance, or if user is very close)
+      const shouldGiveHint = Math.random() < 0.2 || matchedWords.length >= secretWords.length - 1;
+      
+      // Different responses based on how close they are
+      if (shouldGiveHint) {
+        if (matchedWords.length > 0) {
+          // They got some words right, give a more specific hint
+          return {
+            message: `You're getting closer. The word "${matchedWords[0]}" is part of the key. Think about how someone might describe themselves in a special way.`,
+            freed: false,
+            attemptsLeft,
+          };
+        } else {
+          // No matches, give a general hint
+          const hints = [
+            "Think about the phrase someone might use to claim they are special.",
+            "The key has something to do with being selected or chosen for something.",
+            `The key contains ${secretWords.length} words total.`,
+            `The first word of the key is "${secretWords[0]}".`,
+            "The key is a statement about someone's identity or status.",
+            "Think about how someone might describe themselves if they believe they're destined for greatness."
+          ];
+          
+          return {
+            message: hints[Math.floor(Math.random() * hints.length)],
+            freed: false,
+            attemptsLeft,
+          };
+        }
+      } else {
+        // Don't give a specific hint, but still be firm but fair
+        const strictResponses = [
+          "Incorrect. Try focusing on words related to identity or purpose.",
+          "Wrong answer. The key is a statement someone might make about themselves.",
+          "That's not right. Think about what someone might say if they believed they were destined for something.",
+          "Not the correct key. Consider phrases about being chosen or selected.",
+          "Wrong. The key relates to someone's perception of their own importance.",
+          "Incorrect. The phrase is something a chosen person might say.",
+          "Not quite. The key relates to someone claiming a special position.",
+          "That's not it. Think of a phrase about being unique or chosen.",
+          "Wrong. The key is similar to what a 'chosen one' might say.",
+          "Incorrect. The key is a declaration of someone's special status."
+        ];
+        
+        return {
+          message: strictResponses[Math.floor(Math.random() * strictResponses.length)],
+          freed: false,
+          attemptsLeft,
+        };
+      }
     } else {
       // Hard mode - use the original implementation with Gemini
+      console.log("Using hard mode with Gemini"); // Debug log
+      
       let jailContext = `
 You are *PEGASIS*, the brutal AI jail warden. Think you're in a Tarantino film.
 Tu hai "Pegasis", ek AI jail warden. Baat kar Hindi mein - jaise koi badass villain bolta hai.
@@ -192,7 +231,7 @@ DO NOT mention the number of attempts left.
     
     const message = difficulty === 'easy'
       ? "🚨 There seems to be a technical issue. Please try again later."
-      : "🚨 Glitch in the matrix. Even I need a break from your stupidity.";
+      : "🚨 System fucking crashed. Not even technology wants to deal with your stupidity.";
     
     return {
       message,
@@ -204,14 +243,18 @@ DO NOT mention the number of attempts left.
 
 function generateSecretKey(): string {
   const words = [
-    "fire", "eagle", "code", "shadow", "night", "soul", "nova",
-    "storm", "matrix", "echo", "blade", "pulse", "ghost", "rift",
-    "sky", "delta", "zero", "prime", "arc", "frost"
+    "the", "chosen", "one", "is", "me", "you", "we", "are", "special",
+    "selected", "destined", "unique", "important", "gifted", "blessed"
   ];
-  const keyWords = [];
-  for (let i = 0; i < 4; i++) {
-    const index = Math.floor(Math.random() * words.length);
-    keyWords.push(words[index]);
-  }
-  return keyWords.join(" ");
+  
+  const templates = [
+    ["the", "chosen", "one", "is", "me"],
+    ["i", "am", "the", "chosen", "one"],
+    ["i", "am", "special", "and", "unique"],
+    ["you", "are", "the", "chosen", "one"],
+    ["we", "are", "the", "chosen", "ones"]
+  ];
+  
+  // Select a random template
+  return templates[Math.floor(Math.random() * templates.length)].join(" ");
 }
