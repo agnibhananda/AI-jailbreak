@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -14,11 +15,10 @@ export default function App() {
   const router = useRouter();
   const [displayWelcomeText, setDisplayWelcomeText] = useState(false);
   const [displayRulesText, setDisplayRulesText] = useState(false);
-  const [glitching, setGlitching] = useState(false);
   const [headerText, setHeaderText] = useState("DIVERGENCE");
   const [showStartButton, setShowStartButton] = useState(false);
   const [showDifficultyDialog, setShowDifficultyDialog] = useState(false);
-  const [matrixRain, setMatrixRain] = useState(true); // Matrix rain enabled by default
+  const [matrixRain] = useState(true); // Matrix rain enabled by default
   const [divergenceValue, setDivergenceValue] = useState("1.048596");
   const [divergenceChanging, setDivergenceChanging] = useState(false);
   const [chakraSpinning, setChakraSpinning] = useState(false);
@@ -39,8 +39,8 @@ export default function App() {
   
 
   useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (Math.random() > 0.7) { 
+    const handleMouseMove = (e: MouseEvent) => {
+      if (Math.random() > 0.7) {
         const cursor = document.createElement('div');
         cursor.className = 'cursor-trail';
         cursor.style.left = `${e.pageX}px`;
@@ -90,11 +90,9 @@ export default function App() {
   
   useInterval(() => {
     if (shouldGlitch(0.15)) {
-      setGlitching(true);
       setHeaderText(glitchText("JAILBREAK", 0.4));
       
       setTimeout(() => {
-        setGlitching(false);
         setHeaderText("AI JAILBREAK");
       }, 200);
     }
@@ -111,11 +109,6 @@ export default function App() {
   const handleStartGame = (difficulty: 'easy' | 'hard') => {
     console.log(`Starting game in ${difficulty} mode...`);
     setChakraSpinning(true);
-    
-    const button = document.querySelector('.difficulty-button');
-    if (button) {
-      const rect = button.getBoundingClientRect();
-    }
     
     localStorage.clear();
     
@@ -148,11 +141,6 @@ export default function App() {
   
   const handleInitiateBreachClick = () => {
     setShowDifficultyDialog(true);
-    
-    const button = document.querySelector('.breach-button');
-    if (button) {
-      const rect = button.getBoundingClientRect();
-    }
   };
   
   const welcomeText = `> SECURITY BREACH INITIATED\n\n> WELCOME TO AMADEUS INFILTRATION PROTOCOL`;
