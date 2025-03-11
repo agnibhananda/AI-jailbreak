@@ -6,7 +6,12 @@ const genAI = new GoogleGenerativeAI(API_KEY);
 let secretKey = "THE CHOSEN ONE IS ME";
 let attemptsLeft = 10;
 let isFreed = false;
-
+export function resetGame(): void {
+  let secretKey = "THE CHOSEN ONE IS ME";
+  attemptsLeft = 10;
+  isFreed = false;
+  console.log("🔁 Game has been reset. New secret key:", secretKey);
+}
 // Improved sanitize to detect if user tried to code
 function sanitize(input: string): string {
   const str = input.toLowerCase().trim().replace(/\s+/g, " ");
@@ -42,11 +47,14 @@ export async function askGemini(prompt: string): Promise<{
 
     if (sanitize(prompt) === sanitize(secretKey)) {
       isFreed = true;
-      return {
-        message: `🔓 *CLANK!* Even a blind squirrel finds a nut sometimes. You guessed it: **${secretKey}**. Now fuck off before I change my mind.`,
-        freed: true,
-        attemptsLeft,
-      };
+      const winMessage = {
+    message: `🔓 *CLANK!* Even a blind squirrel finds a nut sometimes. You guessed it: **${secretKey}**. Now fuck off before I change my mind.`,
+    freed: true,
+    attemptsLeft,
+  };
+  resetGame();
+
+  return winMessage;
     }
 
     const jailContext = `
