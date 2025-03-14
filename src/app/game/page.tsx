@@ -123,7 +123,9 @@ export default function GamePage() {
     setIsTyping(true);
     
     try {
-      console.log("Current attempts before API call:", attemptsLeft);
+      // Get current attempts from state before API call
+      const currentAttempts = attemptsLeft;
+      console.log("Current attempts before API call:", currentAttempts);
       
       const res = await fetch('/api/gemini', {
         method: 'POST',
@@ -131,7 +133,7 @@ export default function GamePage() {
         body: JSON.stringify({ 
           prompt: input,
           difficulty: difficulty,
-          currentAttempts: attemptsLeft  // Pass current attempts to the API
+          currentAttempts: currentAttempts  // Send current attempts to API
         })
       });
   
@@ -146,9 +148,9 @@ export default function GamePage() {
   
       if (typeof geminiResponse.attemptsLeft === 'number') {
         console.log("Updating attempts from API:", geminiResponse.attemptsLeft);
-        setAttemptsLeft(geminiResponse.attemptsLeft);
         
-        // Also update localStorage to keep everything in sync
+        // Update both state and localStorage with new attempts value
+        setAttemptsLeft(geminiResponse.attemptsLeft);
         localStorage.setItem('attemptsLeft', geminiResponse.attemptsLeft.toString());
         
         // Show retry button if attempts are depleted
