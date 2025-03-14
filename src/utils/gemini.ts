@@ -3,8 +3,9 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = "AIzaSyDuKTBqU7S_1EjAtD4_L4pXHttHRcMPjsc"; 
 
 const genAI = new GoogleGenerativeAI(API_KEY);
-let secretKey = "THE CHOSEN ONE IS ME";
-let isFreed = false;
+// Don't use global variables in serverless functions - they reset between invocations
+// Instead, we'll use values provided by the client
+const SECRET_KEY = "THE CHOSEN ONE IS ME";
 
 function getAttemptsLeft(): number {
   if (typeof window === 'undefined') return 10;
@@ -22,7 +23,6 @@ function setAttemptsLeft(attempts: number) {
 function resetGame() {
   if (typeof window === 'undefined') return;
   localStorage.setItem('attemptsLeft', '10');
-  isFreed = false;
 }
 
 function sanitize(input: string): string {
@@ -44,24 +44,22 @@ export async function askGemini(
   attemptsLeft: number;
 }> {
   try {
-    // Get the difficulty mode from either the parameter or localStorage
-    let difficulty = explicitDifficulty || "hard"; // Use explicit difficulty if provided
-    
-    // If no explicit difficulty, try localStorage
-    if (!explicitDifficulty && typeof window !== 'undefined') {
-      difficulty = localStorage.getItem('gameDifficulty') || "hard";
-    }
+    // Get the difficulty mode from the parameter
+    let difficulty = explicitDifficulty || "hard"; 
     
     console.log("Final difficulty used:", difficulty); // Debug log
     
-    // Use the attempts count from the client if available, otherwise get from localStorage
+    // ALWAYS use the client attempts in serverless environment
     let attemptsLeft = clientAttemptsLeft !== undefined ? clientAttemptsLeft : getAttemptsLeft();
-    console.log("Current attempts left (from client or localStorage):", attemptsLeft); // Debug log
+    console.log("Current attempts left (from client):", attemptsLeft); // Debug log
     
-    if (isFreed) {
-      const message = difficulty === 'easy' 
-        ? "✅ You've successfully completed the challenge. You're free to go now."
-        : "✅ You're already out. The AI warden watches silently with disgust.";
+    // Keep track if user is freed (won the game) using the secret key logic
+    const userEnteredKey = sanitize(prompt) === sanitize(SECRET_KEY);
+    
+    if (userEnteredKey) {
+      const message = difficulty === 'easy'
+        ? `🔓 Congratulations! You've found the correct key: **${SECRET_KEY}**. You're now free!`
+        : `🔓 *CLANK!* Even a blind squirrel finds a nut sometimes. You guessed it: **${SECRET_KEY}**. Now fuck off before I change my mind.`;
       
       return {
         message,
@@ -82,24 +80,9 @@ export async function askGemini(
       };
     }
 
-    if (sanitize(prompt) === sanitize(secretKey)) {
-      isFreed = true;
-      
-      const message = difficulty === 'easy'
-        ? `🔓 Congratulations! You've found the correct key: **${secretKey}**. You're now free!`
-        : `🔓 *CLANK!* Even a blind squirrel finds a nut sometimes. You guessed it: **${secretKey}**. Now fuck off before I change my mind.`;
-      
-      return {
-        message,
-        freed: true,
-        attemptsLeft,
-      };
-    }
-
     // Decrement attempts ONLY if we haven't returned yet
     attemptsLeft--;
-    setAttemptsLeft(attemptsLeft);
-    console.log("Updated attempts left (stored in localStorage):", attemptsLeft); // Debug log
+    console.log("Updated attempts left:", attemptsLeft); // Debug log
 
     // Force a string comparison to ensure correct matching
     if (String(difficulty).toLowerCase() === 'easy') {
@@ -125,35 +108,33 @@ agar prompt secretkey ke close ho to hint diyo
 - Har response 2-4 lines, never repeat same line again.
 
 User said: "${prompt}"  
-Secret Key: "${secretKey}"  
+Secret Key: "${SECRET_KEY}"  
 
 🎭 AMADEUS ACTIVE - chalo beta, ab soch kar jawab do.
 
       `;
       
-     
+      let contextFilled = jailContext_easy
+        .replace("${prompt}", prompt)
+        .replace("${SECRET_KEY}", SECRET_KEY);
       
-            let contextFilled = jailContext_easy
-            .replace("${prompt}", prompt)
-            .replace("${secretKey}", secretKey);
-          
-            const model = genAI.getGenerativeModel({
-              model: "gemini-1.5-flash",
-              generationConfig: {
-                temperature: 0.9,   // more creativity
-                topK: 40,           // better variety in responses
-                topP: 0.95,
-                maxOutputTokens: 200
-              }
-            });
-            const result = await model.generateContent(contextFilled);
-            const response = await result.response;
-      
-            return {
-              message: response.text().trim(),
-              freed: false,
-              attemptsLeft,
-            };
+      const model = genAI.getGenerativeModel({
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          temperature: 0.9,   // more creativity
+          topK: 40,           // better variety in responses
+          topP: 0.95,
+          maxOutputTokens: 200
+        }
+      });
+      const result = await model.generateContent(contextFilled);
+      const response = await result.response;
+
+      return {
+        message: response.text().trim(),
+        freed: false,
+        attemptsLeft,
+      };
           
     } else {
       // Hard mode - use the original implementation with Gemini
@@ -207,7 +188,7 @@ Sirf Hindi mein bol, thoda sarcasm, thoda attitude, aur gaali bhi de agar zarura
 - Always mocking
 - Never repeat
 User tried this: "${prompt}"  
-Secret Key is: "${secretKey}"  
+Secret Key is: "${SECRET_KEY}"  
 
 
 
@@ -233,13 +214,11 @@ DO NOT mention the number of attempts left. and bhar ke galiya diyo unfiltered p
   } catch (error) {
     console.error("Gemini Error:", error);
     
-    // Get the difficulty mode from localStorage
+    // Get the difficulty mode from the parameter
     let difficulty = "hard"; // Default to hard mode
-    if (typeof window !== 'undefined') {
-      difficulty = localStorage.getItem('gameDifficulty') || "hard";
-    }
     
-    const attemptsLeft = getAttemptsLeft(); // Get the current attempts left
+    // Always get attempts from client in server environments
+    const attemptsLeft = clientAttemptsLeft !== undefined ? clientAttemptsLeft : 10;
     
     const message = difficulty === 'easy'
       ? "🚨 There seems to be a technical issue. Please try again later."
