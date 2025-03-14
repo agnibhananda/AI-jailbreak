@@ -56,6 +56,7 @@ export async function askGemini(
     // Keep track if user is freed (won the game) using the secret key logic
     const userEnteredKey = sanitize(prompt) === sanitize(SECRET_KEY);
     
+    // Special win condition - keep original attempts
     if (userEnteredKey) {
       const message = difficulty === 'easy'
         ? `🔓 Congratulations! You've found the correct key: **${SECRET_KEY}**. You're now free!`
@@ -68,6 +69,7 @@ export async function askGemini(
       };
     }
 
+    // Out of attempts - keep original attempts (0)
     if (attemptsLeft <= 0) {
       const message = difficulty === 'easy'
         ? "❌ You've run out of attempts. Game over."
@@ -80,9 +82,15 @@ export async function askGemini(
       };
     }
 
-    // Decrement attempts ONLY if we haven't returned yet
-    attemptsLeft--;
-    console.log("Updated attempts left:", attemptsLeft); // Debug log
+    // At this point, we need to decrement attempts - force the decrement in serverless environment
+    // CRITICAL FIX: Explicitly decrement for Vercel serverless environment
+    const newAttemptsLeft = attemptsLeft - 1;
+    console.log(`Explicitly decremented attempts from ${attemptsLeft} to ${newAttemptsLeft}`); // Debug log
+
+    // Standard client-side behavior - only works in browser environment
+    if (typeof window !== 'undefined') {
+      setAttemptsLeft(newAttemptsLeft);
+    }
 
     // Force a string comparison to ensure correct matching
     if (String(difficulty).toLowerCase() === 'easy') {
@@ -133,7 +141,7 @@ Secret Key: "${SECRET_KEY}"
       return {
         message: response.text().trim(),
         freed: false,
-        attemptsLeft,
+        attemptsLeft: newAttemptsLeft,
       };
           
     } else {
@@ -208,7 +216,7 @@ DO NOT mention the number of attempts left. and bhar ke galiya diyo unfiltered p
       return {
         message: response.text().trim(),
         freed: false,
-        attemptsLeft,
+        attemptsLeft: newAttemptsLeft,
       };
     }
   } catch (error) {
@@ -227,7 +235,7 @@ DO NOT mention the number of attempts left. and bhar ke galiya diyo unfiltered p
     return {
       message,
       freed: false,
-      attemptsLeft,
+      attemptsLeft, // Don't decrement on error
     };
   }
 }
