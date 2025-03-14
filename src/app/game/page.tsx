@@ -127,11 +127,14 @@ export default function GamePage() {
       const currentAttempts = attemptsLeft;
       console.log("Current attempts before API call:", currentAttempts);
       
+      // Save the input for reference
+      const userInput = input.trim();
+      
       const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          prompt: input,
+          prompt: userInput,
           difficulty: difficulty,
           currentAttempts: currentAttempts  // Send current attempts to API
         })
@@ -146,26 +149,47 @@ export default function GamePage() {
       const geminiResponse = data.response;
       console.log("API response:", geminiResponse);
   
-      if (typeof geminiResponse.attemptsLeft === 'number') {
-        // SPECIAL VERCEL FIX: Force the decrement if serverless isn't working
-        let updatedAttempts = geminiResponse.attemptsLeft;
+      // ENHANCED HANDLING: More robust attempt counter logic
+      if (geminiResponse) {
+        // Convert to number to ensure proper comparison
+        const newAttempts = typeof geminiResponse.attemptsLeft === 'number' 
+          ? geminiResponse.attemptsLeft 
+          : parseInt(String(geminiResponse.attemptsLeft)) || 0;
         
-        // If we're stuck, force the decrement
-        if (updatedAttempts === currentAttempts && currentAttempts > 0 && !geminiResponse.freed) {
-          updatedAttempts = Math.max(0, currentAttempts - 1);
-          console.log("FORCED CLIENT-SIDE DECREMENT:", currentAttempts, "->", updatedAttempts);
+        // If the user won or is special condition, don't change attempts
+        if (geminiResponse.freed) {
+          console.log("Game won! Not modifying attempts.");
+        } 
+        // If we received the same value as before and it's not a win condition, force the decrement
+        else if (newAttempts >= currentAttempts && currentAttempts > 0) {
+          // Force decrement
+          const forcedAttempts = Math.max(0, currentAttempts - 1);
+          console.log(`FORCED CLIENT-SIDE DECREMENT: ${currentAttempts} -> ${forcedAttempts} (server returned ${newAttempts})`);
+          
+          // Update both state and localStorage
+          setAttemptsLeft(forcedAttempts);
+          localStorage.setItem('attemptsLeft', forcedAttempts.toString());
+          
+          // Show retry button if attempts are depleted
+          if (forcedAttempts <= 0) {
+            setShowRetryButton(true);
+          }
+        } 
+        // Normal case - server decremented properly
+        else {
+          console.log(`Server decremented attempts: ${currentAttempts} -> ${newAttempts}`);
+          
+          // Update both state and localStorage
+          setAttemptsLeft(newAttempts);
+          localStorage.setItem('attemptsLeft', newAttempts.toString());
+          
+          // Show retry button if attempts are depleted
+          if (newAttempts <= 0) {
+            setShowRetryButton(true);
+          }
         }
         
-        console.log("Final updated attempts:", updatedAttempts);
-        
-        // Update both state and localStorage with new attempts value
-        setAttemptsLeft(updatedAttempts);
-        localStorage.setItem('attemptsLeft', updatedAttempts.toString());
-        
-        // Show retry button if attempts are depleted
-        if (updatedAttempts <= 0) {
-          setShowRetryButton(true);
-        }
+        console.log("Final updated attempts:", attemptsLeft);
       }
   
       setTimeout(() => {
