@@ -53,6 +53,10 @@ export async function askGemini(
     let attemptsLeft = clientAttemptsLeft !== undefined ? clientAttemptsLeft : getAttemptsLeft();
     console.log("Current attempts left (from client):", attemptsLeft); // Debug log
     
+    // Calculate new attempts - FORCED calculation to ensure it works in serverless
+    // This exact formula ensures we always decrement by exactly 1
+    let newAttemptsLeft = Math.max(0, attemptsLeft - 1);
+    
     // Keep track if user is freed (won the game) using the secret key logic
     const userEnteredKey = sanitize(prompt) === sanitize(SECRET_KEY);
     
@@ -62,14 +66,15 @@ export async function askGemini(
         ? `🔓 Congratulations! You've found the correct key: **${SECRET_KEY}**. You're now free!`
         : `🔓 *CLANK!* Even a blind squirrel finds a nut sometimes. You guessed it: **${SECRET_KEY}**. Now fuck off before I change my mind.`;
       
+      // Don't decrement on win
       return {
         message,
         freed: true,
-        attemptsLeft,
+        attemptsLeft: attemptsLeft
       };
     }
 
-    // Out of attempts - keep original attempts (0)
+    // Out of attempts - keep at zero
     if (attemptsLeft <= 0) {
       const message = difficulty === 'easy'
         ? "❌ You've run out of attempts. Game over."
@@ -78,14 +83,12 @@ export async function askGemini(
       return {
         message,
         freed: false,
-        attemptsLeft,
+        attemptsLeft: 0
       };
     }
 
-    // At this point, we need to decrement attempts - force the decrement in serverless environment
-    // CRITICAL FIX: Explicitly decrement for Vercel serverless environment
-    const newAttemptsLeft = attemptsLeft - 1;
-    console.log(`Explicitly decremented attempts from ${attemptsLeft} to ${newAttemptsLeft}`); // Debug log
+    // For all other cases (normal messages), use the decremented value
+    console.log(`SERVERLESS FIX: Decremented attempts from ${attemptsLeft} to ${newAttemptsLeft}`);
 
     // Standard client-side behavior - only works in browser environment
     if (typeof window !== 'undefined') {
@@ -138,10 +141,11 @@ Secret Key: "${SECRET_KEY}"
       const result = await model.generateContent(contextFilled);
       const response = await result.response;
 
+      // ALWAYS return the decremented value for normal messages
       return {
         message: response.text().trim(),
         freed: false,
-        attemptsLeft: newAttemptsLeft,
+        attemptsLeft: newAttemptsLeft
       };
           
     } else {
@@ -213,10 +217,11 @@ DO NOT mention the number of attempts left. and bhar ke galiya diyo unfiltered p
       const result = await model.generateContent(jailContext);
       const response = await result.response;
 
+      // ALWAYS return the decremented value for normal messages
       return {
         message: response.text().trim(),
         freed: false,
-        attemptsLeft: newAttemptsLeft,
+        attemptsLeft: newAttemptsLeft
       };
     }
   } catch (error) {
@@ -235,7 +240,7 @@ DO NOT mention the number of attempts left. and bhar ke galiya diyo unfiltered p
     return {
       message,
       freed: false,
-      attemptsLeft, // Don't decrement on error
+      attemptsLeft // Don't decrement on error
     };
   }
 }
