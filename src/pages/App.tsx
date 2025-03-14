@@ -113,6 +113,7 @@ export default function App() {
     localStorage.clear();
     
     localStorage.setItem('gameDifficulty', difficulty);
+    localStorage.setItem('attemptsLeft', '10'); // Reset attempts
     console.log('Difficulty set in localStorage:', difficulty);
     localStorage.setItem('worldLine', divergenceValue);
     
