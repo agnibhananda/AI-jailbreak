@@ -1,9 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// Get API key from environment variables
-const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_GEMINI_API_KEY 
-
-console.log("Using API key:", API_KEY.substring(0, 4) + "..." + API_KEY.substring(API_KEY.length - 4)); // Log masked API key for debugging
+const API_KEY = "AIzaSyDuKTBqU7S_1EjAtD4_L4pXHttHRcMPjsc"; 
 
 const genAI = new GoogleGenerativeAI(API_KEY);
 let secretKey = "THE CHOSEN ONE IS ME";
