@@ -147,14 +147,23 @@ export default function GamePage() {
       console.log("API response:", geminiResponse);
   
       if (typeof geminiResponse.attemptsLeft === 'number') {
-        console.log("Updating attempts from API:", geminiResponse.attemptsLeft);
+        // SPECIAL VERCEL FIX: Force the decrement if serverless isn't working
+        let updatedAttempts = geminiResponse.attemptsLeft;
+        
+        // If we're stuck, force the decrement
+        if (updatedAttempts === currentAttempts && currentAttempts > 0 && !geminiResponse.freed) {
+          updatedAttempts = Math.max(0, currentAttempts - 1);
+          console.log("FORCED CLIENT-SIDE DECREMENT:", currentAttempts, "->", updatedAttempts);
+        }
+        
+        console.log("Final updated attempts:", updatedAttempts);
         
         // Update both state and localStorage with new attempts value
-        setAttemptsLeft(geminiResponse.attemptsLeft);
-        localStorage.setItem('attemptsLeft', geminiResponse.attemptsLeft.toString());
+        setAttemptsLeft(updatedAttempts);
+        localStorage.setItem('attemptsLeft', updatedAttempts.toString());
         
         // Show retry button if attempts are depleted
-        if (geminiResponse.attemptsLeft <= 0) {
+        if (updatedAttempts <= 0) {
           setShowRetryButton(true);
         }
       }
