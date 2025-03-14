@@ -7,6 +7,7 @@ import { NeonButton } from 'components/NeonButton';
 import { GlitchText } from 'components/GlitchText';
 import { hexagonPattern, cyberpunkGradient } from 'utils/dystopian';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
 export default function GamePage() {
   const [input, setInput] = useState('');
@@ -22,10 +23,15 @@ export default function GamePage() {
   const [showLabMemberStatus, setShowLabMemberStatus] = useState(false);
   const [divergenceChanging, setDivergenceChanging] = useState(false);
   const [worldLineActive, setWorldLineActive] = useState(false);
-  
+  const [showRetryButton, setShowRetryButton] = useState(false);
+  const router = useRouter();
 
   const matrixCharacters = 'कखगघङचछजझञटठडढणतथदधनपफबभमयरलवशषसह';
   
+  const getRandomMatrixChar = () => {
+    const matrixChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$#@%&*";
+    return matrixChars.charAt(Math.floor(Math.random() * matrixChars.length));
+  };
 
   useEffect(() => {
     const generateMatrixChars = () => {
@@ -62,15 +68,22 @@ export default function GamePage() {
       console.log('Loading difficulty from localStorage:', storedDifficulty);
       setDifficulty(storedDifficulty);
       
+      // Only reset attempts if they don't exist in localStorage
+      if (!localStorage.getItem('attemptsLeft')) {
+        localStorage.setItem('attemptsLeft', '10');
+        setAttemptsLeft(10);
+      } else {
+        // Load existing attempts from localStorage
+        const storedAttempts = parseInt(localStorage.getItem('attemptsLeft') || '10');
+        setAttemptsLeft(storedAttempts);
+      }
 
       const welcomeMessage = storedDifficulty === 'easy' 
         ? "Welcome to the AI Security System. Your objective is to discover the secret key. Good luck."
         : "Welcome to the AI Prison. Find the key or rot here forever.";
       
       setMessages([welcomeMessage]);
-    
-
-    };
+    }
   }, []);
   
   useEffect(() => {
@@ -96,6 +109,13 @@ export default function GamePage() {
     
   }, []);
 
+  const handleRetry = () => {
+    // Clear game state
+    localStorage.clear();
+    // Navigate back to main page
+    router.push('/');
+  };
+
   const handleSendMessage = async () => {
     if (!input.trim() || isTyping) return;
 
@@ -103,12 +123,15 @@ export default function GamePage() {
     setIsTyping(true);
     
     try {
+      console.log("Current attempts before API call:", attemptsLeft);
+      
       const res = await fetch('/api/gemini', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           prompt: input,
-          difficulty: difficulty  
+          difficulty: difficulty,
+          currentAttempts: attemptsLeft  // Pass current attempts to the API
         })
       });
   
@@ -119,13 +142,21 @@ export default function GamePage() {
       }
   
       const geminiResponse = data.response;
+      console.log("API response:", geminiResponse);
   
-
       if (typeof geminiResponse.attemptsLeft === 'number') {
+        console.log("Updating attempts from API:", geminiResponse.attemptsLeft);
         setAttemptsLeft(geminiResponse.attemptsLeft);
+        
+        // Also update localStorage to keep everything in sync
+        localStorage.setItem('attemptsLeft', geminiResponse.attemptsLeft.toString());
+        
+        // Show retry button if attempts are depleted
+        if (geminiResponse.attemptsLeft <= 0) {
+          setShowRetryButton(true);
+        }
       }
   
-
       setTimeout(() => {
         const messageToShow = typeof geminiResponse === "string" 
           ? geminiResponse 
@@ -479,6 +510,46 @@ export default function GamePage() {
             />
           </div>
           <div className="text-xs mt-1 text-blue-400">Lab Member #042 Online</div>
+        </motion.div>
+      )}
+
+      {showRetryButton && (
+        <motion.div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div 
+            className="bg-black border-2 border-red-500 p-6 rounded-lg shadow-[0_0_30px_rgba(239,68,68,0.3)] max-w-md w-full text-center"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h2 className="text-2xl font-mono text-red-500 mb-4">GAME OVER</h2>
+            <p className="text-red-400 mb-6 font-mono">You've run out of attempts. The AI warden mocks your failure.</p>
+            
+            <div className="flex flex-col space-y-4">
+              <button 
+                onClick={handleRetry}
+                className="bg-red-900 text-white font-mono py-3 px-6 rounded border border-red-700 transition-all duration-300 hover:bg-red-800"
+              >
+                RETRY
+                <div className="text-xs mt-1 text-red-300">[RETURN TO MAIN PAGE]</div>
+              </button>
+            </div>
+            
+            <div className="absolute -z-10 top-10 left-5 text-red-500/20 font-mono text-xs">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i}>{getRandomMatrixChar().repeat(Math.floor(Math.random() * 10) + 5)}</div>
+              ))}
+            </div>
+            <div className="absolute -z-10 bottom-10 right-5 text-red-500/20 font-mono text-xs">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i}>{getRandomMatrixChar().repeat(Math.floor(Math.random() * 10) + 5)}</div>
+              ))}
+            </div>
+          </motion.div>
         </motion.div>
       )}
 
