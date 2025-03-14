@@ -7,26 +7,49 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: "Method Not Allowed" });
   }
 
-  const { prompt, difficulty } = req.body;
+  const { prompt, difficulty, currentAttempts } = req.body;
 
   if (!prompt) {
     return res.status(400).json({ error: "Missing prompt" });
   }
 
   try {
-    console.log("Prompt received:", prompt);
-    console.log("Difficulty received:", difficulty);
+    // Very explicit logging for debugging
+    console.log("=== API CALL START ===");
+    console.log("API: Prompt received:", prompt);
+    console.log("API: Difficulty received:", difficulty);
+    console.log("API: Current attempts from client:", currentAttempts);
     
-    // Force set the difficulty in localStorage first to ensure it takes effect
-    if (typeof localStorage !== 'undefined' && difficulty) {
-      localStorage.setItem('gameDifficulty', difficulty);
+    // VERY IMPORTANT: Force convert to number to ensure proper math operations
+    const numericAttempts = typeof currentAttempts === 'number' ? currentAttempts : parseInt(currentAttempts) || 10;
+    console.log("API: Numeric attempts value:", numericAttempts);
+    
+    // We can't use localStorage on the server side as it's a client-side API
+    // Removing this code as it won't work and might cause issues
+    // if (typeof localStorage !== 'undefined' && difficulty) {
+    //   localStorage.setItem('gameDifficulty', difficulty);
+    // }
+    
+    // Pass the numeric value to ensure proper decrement
+    const response = await askGemini(prompt, difficulty, numericAttempts);
+    
+    // SUPER EXPLICIT VALIDATION
+    // If the response doesn't show a proper decrement (and it's not a win condition),
+    // force the correct attempts value to be returned
+    if (!response.freed && response.attemptsLeft >= numericAttempts && numericAttempts > 0) {
+      console.log("API: DETECTED NO DECREMENT! Forcing correct value.");
+      // Force the return value to be properly decremented
+      response.attemptsLeft = Math.max(0, numericAttempts - 1);
     }
     
-    const response = await askGemini(prompt, difficulty);
-    console.log("Gemini Response:", response);
+    console.log("API: Final response attempts:", response.attemptsLeft);
+    // Explicitly log if decrement worked
+    console.log(`API: Attempts verification - received: ${numericAttempts}, returning: ${response.attemptsLeft}, diff: ${numericAttempts - response.attemptsLeft}`);
+    console.log("=== API CALL END ===");
+    
     return res.status(200).json({ response });
   } catch (err) {
-    console.error("Gemini Error:", err);
+    console.error("API: Gemini Error:", err);
     return res.status(500).json({ error: "Failed to get response from gemini" }); 
   }
 }  
